@@ -1,0 +1,38 @@
+[configuration]
+
+entry_symbol = "fluidsynth_library_init"
+compatibility_minimum = "4.2"
+
+[libraries]
+
+windows.debug.x86_64 = "res://bin/libfluidsynth.windows.template_debug.x86_64.dll"
+windows.release.x86_64 = "res://bin/libfluidsynth.windows.template_release.x86_64.dll"
+
+[dependencies]
+
+windows.debug.x86_64 = {
+    "res://bin/libfluidsynth-3.dll" : "",
+    "res://bin/libgcc_s_sjlj.dll" : "",
+    "res://bin/libglib-2.0-0.dll" : "",
+    "res://bin/libgobject-2.0-0.dll" : "",
+    "res://bin/libgomp-1.dll" : "",
+    "res://bin/libgthread-2.0-0.dll" : "",
+    "res://bin/libinstpatch-2.dll" : "",
+    "res://bin/libintl-8.dll" : "",
+    "res://bin/libsndfile-1.dll" : "",
+    "res://bin/libstdc++-6.dll" : "",
+    "res://bin/libwinpthread-1.dll" : "",
+}
+windows.release.x86_64 = {
+    "res://bin/libfluidsynth-3.dll" : "",
+    "res://bin/libgcc_s_sjlj.dll" : "",
+    "res://bin/libglib-2.0-0.dll" : "",
+    "res://bin/libgobject-2.0-0.dll" : "",
+    "res://bin/libgomp-1.dll" : "",
+    "res://bin/libgthread-2.0-0.dll" : "",
+    "res://bin/libinstpatch-2.dll" : "",
+    "res://bin/libintl-8.dll" : "",
+    "res://bin/libsndfile-1.dll" : "",
+    "res://bin/libstdc++-6.dll" : "",
+    "res://bin/libwinpthread-1.dll" : "",
+}
