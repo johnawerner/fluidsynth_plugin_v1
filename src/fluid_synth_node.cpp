@@ -1,19 +1,25 @@
 #include "fluid_synth_node.h"
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/error_macros.hpp>
+#include <godot_cpp/classes/input_event_midi.hpp>
 
 using namespace godot;
 
 void FluidSynthNode::_bind_methods() {
     // Settings methods
-	ClassDB::bind_method(D_METHOD("load_settings", "file_path"), &FluidSynthNode::load_settings);
-	ClassDB::bind_method(D_METHOD("save_settings", "file_path"), &FluidSynthNode::save_settings);
-	ClassDB::bind_method(D_METHOD("unload_settings", "include_settings"), &FluidSynthNode::unload_settings);
+	ClassDB::bind_method(D_METHOD("create_settings", "file_path"), &FluidSynthNode::create_settings);
+	ClassDB::bind_method(D_METHOD("change_setting_int", "setting", "value"), &FluidSynthNode::change_setting_int);
+	ClassDB::bind_method(D_METHOD("change_setting_dbl", "setting", "value"), &FluidSynthNode::change_setting_dbl);
+	ClassDB::bind_method(D_METHOD("change_setting_str", "setting", "value"), &FluidSynthNode::change_setting_str);
+	ClassDB::bind_method(D_METHOD("unload_settings", "include_settings"), &FluidSynthNode::delete_settings);
 
     // Synth methods
 	ClassDB::bind_method(D_METHOD("load_synth", "sf_path"), &FluidSynthNode::load_synth);
 	ClassDB::bind_method(D_METHOD("load_soundfont", "sf_path", "reset"), &FluidSynthNode::load_soundfont);
 	ClassDB::bind_method(D_METHOD("unload_synth"), &FluidSynthNode::unload_synth);
+	ClassDB::bind_method(D_METHOD("map_channel", "channel", "mapped_channel"), &FluidSynthNode::map_channel);
+	ClassDB::bind_method(D_METHOD("setup_channel", "channel", "program", "reverb", "chorus",
+        "volume", "pan", "expression"), &FluidSynthNode::setup_channel);
 
     // Player methods
 	ClassDB::bind_method(D_METHOD("create_midi_player"), &FluidSynthNode::create_midi_player);
@@ -29,6 +35,10 @@ FluidSynthNode::FluidSynthNode() {
     synth = NULL;
     adriver = NULL;
     player = NULL;
+    set_process_input(false);
+    for (int i = 0; i < 16; ++i) {
+        channel_map[i] = i;
+    }
 }
 
 FluidSynthNode::~FluidSynthNode() {
@@ -41,26 +51,53 @@ FluidSynthNode::~FluidSynthNode() {
     player = NULL;
 }
 
-int FluidSynthNode::load_settings(String file_path) {
-
+int FluidSynthNode::create_settings() {
     // Create the settings.
     settings = new_fluid_settings();
     ERR_FAIL_COND_V_MSG(settings == NULL, -1,
 		"Failed to create FluidSynth settings");
- 
-    // Change the settings
 
     return 0;
 }
 
-int FluidSynthNode::save_settings(String file_path) {
-
-    // TODO: Save the settings
-
+int FluidSynthNode::change_setting_int(String setting, int value){
+    if (settings != NULL) {
+        ERR_FAIL_COND_V_MSG(
+            fluid_settings_setint(settings, setting.ascii(), value) == FLUID_FAILED, -1,
+            vformat("Failed to change setting: %s", setting.ascii()));
+    }
+    else {
+        ERR_FAIL_V_MSG(-1, "FluidSynth settings not created");
+    }
     return 0;
 }
 
-int FluidSynthNode::unload_settings() {
+int FluidSynthNode::change_setting_dbl(String setting, double value){
+    if (settings != NULL) {
+        ERR_FAIL_COND_V_MSG(
+            fluid_settings_setnum(settings, setting.ascii(), value) == FLUID_FAILED, -1,
+            vformat("Failed to change setting: %s", setting.ascii()));
+    }
+    else {
+        ERR_FAIL_V_MSG(-1, "FluidSynth settings not created");
+    }
+    return 0;
+}
+
+int FluidSynthNode::change_setting_str(String setting, String value){
+    if (settings != NULL) {
+        ERR_FAIL_COND_V_MSG(
+            fluid_settings_setstr(settings, setting.ascii(), value.ascii()) == FLUID_FAILED, -1,
+            vformat("Failed to change setting: %s", setting.ascii()));
+    }
+    else {
+        ERR_FAIL_V_MSG(-1, "FluidSynth settings not created");
+    }
+    return 0;
+}
+
+
+int FluidSynthNode::delete_settings() {
 
     if (settings != NULL) {
         delete_fluid_settings(settings);
@@ -95,6 +132,8 @@ int FluidSynthNode::load_synth(String sf_path) {
         ERR_FAIL_V_MSG(-1, "Failed to create audio driver for FluidSynth");
     }
 
+    set_process_input(true);
+
     return 0;
 }
 
@@ -116,14 +155,71 @@ int FluidSynthNode::load_soundfont(String sf_path, int reset) {
 
 int FluidSynthNode::unload_synth(bool include_settings) {
     /* Clean up */
+    set_process_input(false);
     delete_midi_player();
     delete_fluid_audio_driver(adriver);
     delete_fluid_synth(synth);
     if (include_settings) {
-        unload_settings();
+        delete_settings();
     }
 
     return 0;
+}
+
+void FluidSynthNode::map_channel(int channel, int mapped_channel) {
+    channel_map[channel] = mapped_channel;
+}
+
+int FluidSynthNode::setup_channel(int channel, int program, int reverb, int chorus,
+    int volume = 100, int pan = 64, int expression = 127) {
+    
+    ERR_FAIL_COND_V_MSG(synth == NULL, -1,
+        "Create a FluidSynth instance before channel setup");
+    
+    // Reset all controllers
+    fluid_synth_cc(synth, channel, 121, 0);
+
+    fluid_synth_program_change(synth, channel, program);
+    fluid_synth_cc(synth, channel, 91, reverb);
+    fluid_synth_cc(synth, channel, 93, chorus);
+    fluid_synth_cc(synth, channel, 7, volume);
+    fluid_synth_cc(synth, channel, 10, pan);
+    fluid_synth_cc(synth, channel, 11, expression);
+}
+
+void FluidSynthNode::_input(const Ref<InputEvent> &event) {
+    InputEventMIDI* midi_event;
+    if ((midi_event = dynamic_cast<InputEventMIDI*>(*event)) != nullptr ) {
+        int channel = channel_map[midi_event->get_channel()];
+        switch(midi_event->get_message()) {
+            case MIDI_MESSAGE_NOTE_OFF:
+                fluid_synth_noteoff(synth, channel, midi_event->get_pitch());
+                break;
+            case MIDI_MESSAGE_NOTE_ON:
+                fluid_synth_noteon(synth, channel, midi_event->get_pitch(),
+                    midi_event->get_velocity());
+                break;
+            case MIDI_MESSAGE_AFTERTOUCH:
+                fluid_synth_key_pressure(synth, channel, midi_event->get_pitch(),
+                    midi_event->get_pressure());
+                break;
+            case MIDI_MESSAGE_CHANNEL_PRESSURE:
+                fluid_synth_channel_pressure(synth, channel, midi_event->get_pressure());
+                break;
+            case MIDI_MESSAGE_CONTROL_CHANGE:
+                fluid_synth_cc(synth, channel, midi_event->get_controller_number(),
+                    midi_event->get_controller_value());
+                break;
+            case MIDI_MESSAGE_PITCH_BEND:
+                fluid_synth_pitch_bend(synth, channel, midi_event->get_pitch());
+                break;
+            case MIDI_MESSAGE_PROGRAM_CHANGE:
+                fluid_synth_program_change(synth, channel, midi_event->get_instrument());
+                break;
+            default:
+                break;
+        }
+    }
 }
 
 int FluidSynthNode::create_midi_player() {
