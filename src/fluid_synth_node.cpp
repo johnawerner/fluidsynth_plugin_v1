@@ -1,6 +1,7 @@
 #include "fluid_synth_node.h"
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/error_macros.hpp>
+#include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/input_event_midi.hpp>
 
 using namespace godot;
@@ -64,7 +65,7 @@ int FluidSynthNode::change_setting_int(String setting, int value){
     if (settings != NULL) {
         ERR_FAIL_COND_V_MSG(
             fluid_settings_setint(settings, setting.ascii(), value) == FLUID_FAILED, -1,
-            vformat("Failed to change setting: %s", setting.ascii()));
+            vformat("Failed to change setting: %s", setting));
     }
     else {
         ERR_FAIL_V_MSG(-1, "FluidSynth settings not created");
@@ -76,7 +77,7 @@ int FluidSynthNode::change_setting_dbl(String setting, double value){
     if (settings != NULL) {
         ERR_FAIL_COND_V_MSG(
             fluid_settings_setnum(settings, setting.ascii(), value) == FLUID_FAILED, -1,
-            vformat("Failed to change setting: %s", setting.ascii()));
+            vformat("Failed to change setting: %s", setting));
     }
     else {
         ERR_FAIL_V_MSG(-1, "FluidSynth settings not created");
@@ -88,7 +89,7 @@ int FluidSynthNode::change_setting_str(String setting, String value){
     if (settings != NULL) {
         ERR_FAIL_COND_V_MSG(
             fluid_settings_setstr(settings, setting.ascii(), value.ascii()) == FLUID_FAILED, -1,
-            vformat("Failed to change setting: %s", setting.ascii()));
+            vformat("Failed to change setting: %s", setting));
     }
     else {
         ERR_FAIL_V_MSG(-1, "FluidSynth settings not created");
@@ -148,7 +149,7 @@ int FluidSynthNode::load_soundfont(String sf_path, int reset) {
 
     cur_sfont_id = fluid_synth_sfload(synth, sf_path.ascii(), reset);
     ERR_FAIL_COND_V_MSG(cur_sfont_id == FLUID_FAILED, -1,
-        vformat("Failed to load SoundFont: %s", sf_path.ascii()));
+        vformat("Failed to load SoundFont: %s", sf_path));
 
     return cur_sfont_id;
 }
@@ -171,7 +172,7 @@ void FluidSynthNode::map_channel(int channel, int mapped_channel) {
 }
 
 int FluidSynthNode::setup_channel(int channel, int program, int reverb, int chorus,
-    int volume = 100, int pan = 64, int expression = 127) {
+    int volume, int pan, int expression) {
     
     ERR_FAIL_COND_V_MSG(synth == NULL, -1,
         "Create a FluidSynth instance before channel setup");
@@ -185,6 +186,8 @@ int FluidSynthNode::setup_channel(int channel, int program, int reverb, int chor
     fluid_synth_cc(synth, channel, 7, volume);
     fluid_synth_cc(synth, channel, 10, pan);
     fluid_synth_cc(synth, channel, 11, expression);
+
+    return 0;
 }
 
 void FluidSynthNode::_input(const Ref<InputEvent> &event) {

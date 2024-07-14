@@ -2,6 +2,7 @@
 #define FLUIDSYNTHNODE_H
 
 #include <godot_cpp/classes/node.hpp>
+#include <godot_cpp/classes/input_event.hpp>
 #include <fluidsynth.h>
 
 namespace godot {
