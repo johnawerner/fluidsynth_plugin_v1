@@ -15,7 +15,7 @@ void FluidSynthNode::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("unload_settings", "include_settings"), &FluidSynthNode::delete_settings);
 
     // Synth methods
-	ClassDB::bind_method(D_METHOD("load_synth", "sf_path"), &FluidSynthNode::load_synth);
+	ClassDB::bind_method(D_METHOD("load_synth", "sf_path", "listen_ext_input"), &FluidSynthNode::load_synth);
 	ClassDB::bind_method(D_METHOD("load_soundfont", "sf_path", "reset"), &FluidSynthNode::load_soundfont);
 	ClassDB::bind_method(D_METHOD("unload_synth"), &FluidSynthNode::unload_synth);
 	ClassDB::bind_method(D_METHOD("map_channel", "channel", "mapped_channel"), &FluidSynthNode::map_channel);
@@ -108,7 +108,10 @@ int FluidSynthNode::delete_settings() {
     return 0;
 }
 
-int FluidSynthNode::load_synth(String sf_path) {
+int FluidSynthNode::load_synth(String sf_path, bool listen_ext_input) {
+    // Don't create if synth exists
+    ERR_FAIL_COND_V_MSG(synth != NULL, -1,
+        "FluidSynth instance exists, unload before creating a new one");
 
     // Create the synthesizer
     synth = new_fluid_synth(settings);
@@ -133,7 +136,7 @@ int FluidSynthNode::load_synth(String sf_path) {
         ERR_FAIL_V_MSG(-1, "Failed to create audio driver for FluidSynth");
     }
 
-    set_process_input(true);
+    set_process_input(listen_ext_input);
 
     return 0;
 }

@@ -33,7 +33,7 @@ public:
     int delete_settings();
 
     // Synth
-    int load_synth(String sf_path);
+    int load_synth(String sf_path, bool listen_ext_input);
     int load_soundfont(String sf_path, int reset);
     int unload_synth(bool include_settings);
     void map_channel(int channel, int mapped_channel);
