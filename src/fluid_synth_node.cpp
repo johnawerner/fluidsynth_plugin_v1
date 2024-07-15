@@ -8,11 +8,11 @@ using namespace godot;
 
 void FluidSynthNode::_bind_methods() {
     // Settings methods
-	ClassDB::bind_method(D_METHOD("create_settings", "file_path"), &FluidSynthNode::create_settings);
+	ClassDB::bind_method(D_METHOD("create_settings"), &FluidSynthNode::create_settings);
 	ClassDB::bind_method(D_METHOD("change_setting_int", "setting", "value"), &FluidSynthNode::change_setting_int);
 	ClassDB::bind_method(D_METHOD("change_setting_dbl", "setting", "value"), &FluidSynthNode::change_setting_dbl);
 	ClassDB::bind_method(D_METHOD("change_setting_str", "setting", "value"), &FluidSynthNode::change_setting_str);
-	ClassDB::bind_method(D_METHOD("unload_settings", "include_settings"), &FluidSynthNode::delete_settings);
+	ClassDB::bind_method(D_METHOD("delete_settings"), &FluidSynthNode::delete_settings);
 
     // Synth methods
 	ClassDB::bind_method(D_METHOD("load_synth", "sf_path", "listen_ext_input"), &FluidSynthNode::load_synth);
@@ -162,7 +162,9 @@ int FluidSynthNode::unload_synth(bool include_settings) {
     set_process_input(false);
     delete_midi_player();
     delete_fluid_audio_driver(adriver);
+    adriver = NULL;
     delete_fluid_synth(synth);
+    synth = NULL;
     if (include_settings) {
         delete_settings();
     }
