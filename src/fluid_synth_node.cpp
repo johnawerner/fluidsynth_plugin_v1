@@ -21,12 +21,15 @@ void FluidSynthNode::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("map_channel", "channel", "mapped_channel"), &FluidSynthNode::map_channel);
 	ClassDB::bind_method(D_METHOD("setup_channel", "channel", "program", "reverb", "chorus",
         "volume", "pan", "expression"), &FluidSynthNode::setup_channel);
+	ClassDB::bind_method(D_METHOD("set_interpolation", "val"), &FluidSynthNode::set_interpolation);
+	ClassDB::bind_method(D_METHOD("render_file", "midi_file", "output_file", "sf_path", "interpolation"),
+        &FluidSynthNode::render_file);
 
     // Player methods
 	ClassDB::bind_method(D_METHOD("create_midi_player"), &FluidSynthNode::create_midi_player);
 	ClassDB::bind_method(D_METHOD("delete_midi_player"), &FluidSynthNode::delete_midi_player);
 	ClassDB::bind_method(D_METHOD("player_load_midi", "file_path"), &FluidSynthNode::player_load_midi);
-	ClassDB::bind_method(D_METHOD("player_play"), &FluidSynthNode::player_play);
+	ClassDB::bind_method(D_METHOD("player_play", "loop_count"), &FluidSynthNode::player_play);
 	ClassDB::bind_method(D_METHOD("player_seek", "tick"), &FluidSynthNode::player_seek);
 	ClassDB::bind_method(D_METHOD("player_stop"), &FluidSynthNode::player_stop);
 }
@@ -195,6 +198,79 @@ int FluidSynthNode::setup_channel(int channel, int program, int reverb, int chor
     return 0;
 }
 
+int FluidSynthNode::set_interpolation(int method) {
+    fluid_interp interp_method = FLUID_INTERP_DEFAULT;
+    switch(method) {
+        case 0:
+            interp_method = FLUID_INTERP_NONE;
+            break;
+        case 1:
+            interp_method = FLUID_INTERP_LINEAR;
+            break;
+        case 2:
+            interp_method = FLUID_INTERP_4THORDER;
+            break;
+        case 3:
+            interp_method = FLUID_INTERP_7THORDER;
+            break;
+    }
+
+    ERR_FAIL_COND_V_MSG(fluid_synth_set_interp_method(synth, -1, interp_method) == FLUID_FAILED, -1,
+    "Failed to set interpolation method");
+
+    return 0;
+}
+
+int FluidSynthNode::render_file(String midi_file, String output_file, String sf_path,
+                                int interpolation) {
+        
+    unload_synth(false);
+    // specify the file to store the audio to
+    // make sure you compiled fluidsynth with libsndfile to get a real wave file
+    // otherwise this file will only contain raw s16 stereo PCM
+    fluid_settings_setstr(settings, "audio.file.name", output_file.ascii());
+
+    char** timing_source;
+    fluid_settings_dupstr(settings, "player.timing_source", timing_source);
+    // use number of samples processed as timing source, rather than the system timer
+    fluid_settings_setstr(settings, "player.timing-source", "sample");
+    
+    int lock_memory = 1;
+    fluid_settings_getint(settings, "synth.lock_memory", &lock_memory);
+    // since this is a non-realtime scenario, there is no need to pin the sample data
+    fluid_settings_setint(settings, "synth.lock-memory", 0);
+    
+    synth = new_fluid_synth(settings);
+    
+    fluid_synth_sfload(synth, sf_path.ascii(), true);
+    set_interpolation(interpolation);
+    
+    player = new_fluid_player(synth);
+    fluid_player_add(player, midi_file.ascii());
+    fluid_player_play(player);
+    
+    fluid_file_renderer_t* renderer = new_fluid_file_renderer(synth);
+    
+    while (fluid_player_get_status(player) == FLUID_PLAYER_PLAYING)
+    {
+        if (fluid_file_renderer_process_block(renderer) != FLUID_OK)
+        {
+            break;
+        }
+    }
+    
+    // just for sure: stop the playback explicitly and wait until finished
+    fluid_player_stop(player);
+    fluid_player_join(player);
+    
+    delete_fluid_file_renderer(renderer);
+    unload_synth(false);
+    fluid_settings_setstr(settings, "player.timing-source", *timing_source);
+    fluid_settings_setint(settings, "synth.lock-memory", lock_memory);
+    load_synth(sf_path, false);
+}
+
+
 void FluidSynthNode::_input(const Ref<InputEvent> &event) {
     InputEventMIDI* midi_event;
     if ((midi_event = dynamic_cast<InputEventMIDI*>(*event)) != nullptr ) {
@@ -256,8 +332,12 @@ int FluidSynthNode::player_load_midi(String file_path) {
     return 0;
 }
 
-int FluidSynthNode::player_play() {
+int FluidSynthNode::player_play(int loop_count) {
     if (player != NULL) {
+        if (loop_count >= -1) {
+            fluid_player_set_loop(player, loop_count);
+        }
+
         ERR_FAIL_COND_V_MSG(fluid_player_play(player) == FLUID_FAILED, -1,
             "FluidSynth player failed to play");
     }

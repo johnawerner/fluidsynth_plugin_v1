@@ -39,6 +39,9 @@ public:
     void map_channel(int channel, int mapped_channel);
     int setup_channel(int channel, int program, int reverb, int chorus,
         int volume = 100, int pan = 64, int expression = 127);
+    int set_interpolation(int method);
+    int render_file(String midi_file, String output_file, String sf_path,
+        int interpolation);
     void _input(const Ref<InputEvent> &event) override;
 
 
@@ -46,7 +49,7 @@ public:
     int create_midi_player();
     int delete_midi_player();
     int player_load_midi(String file_path);
-    int player_play();
+    int player_play(int loop_count = 0);
     int player_seek(int tick);
     int player_stop();
 };

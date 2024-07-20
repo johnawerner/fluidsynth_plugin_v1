@@ -5,14 +5,14 @@ compatibility_minimum = "4.2"
 
 [libraries]
 
-windows.debug.x86_64 = "res://bin/libfluidsynth.windows.template_debug.x86_64.dll"
-windows.release.x86_64 = "res://bin/libfluidsynth.windows.template_release.x86_64.dll"
+windows.debug.x86_64 = "res://bin/libfsynthnode.windows.template_debug.x86_64.dll"
+windows.release.x86_64 = "res://bin/libfsynthnode.windows.template_release.x86_64.dll"
 
 [dependencies]
 
 windows.debug.x86_64 = {
     "res://bin/libfluidsynth-3.dll" : "",
-    "res://bin/libgcc_s_sjlj.dll" : "",
+    "res://bin/libgcc_s_sjlj-1.dll" : "",
     "res://bin/libglib-2.0-0.dll" : "",
     "res://bin/libgobject-2.0-0.dll" : "",
     "res://bin/libgomp-1.dll" : "",
@@ -25,7 +25,7 @@ windows.debug.x86_64 = {
 }
 windows.release.x86_64 = {
     "res://bin/libfluidsynth-3.dll" : "",
-    "res://bin/libgcc_s_sjlj.dll" : "",
+    "res://bin/libgcc_s_sjlj-1.dll" : "",
     "res://bin/libglib-2.0-0.dll" : "",
     "res://bin/libgobject-2.0-0.dll" : "",
     "res://bin/libgomp-1.dll" : "",
